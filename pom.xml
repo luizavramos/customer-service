@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>br.com.motorfraude</groupId>
+        <artifactId>motor-fraude-parent</artifactId>
+        <version>0.1.0</version>
+        <relativePath/>
+    </parent>
+
+    <artifactId>customer-service</artifactId>
+    <name>customer-service</name>
+    <description>Projeta o cadastro do banco legado (CDC do Debezium) no perfil do cliente, compactado em customer-profile.v1.</description>
+
+    <properties>
+        <platform-streams.version>0.1.0</platform-streams.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>br.com.motorfraude</groupId>
+            <artifactId>contracts</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>br.com.motorfraude</groupId>
+            <artifactId>platform-commons</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>br.com.motorfraude</groupId>
+            <artifactId>platform-streams</artifactId>
+            <version>${platform-streams.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>br.com.motorfraude</groupId>
+            <artifactId>platform-commons</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>br.com.motorfraude</groupId>
+            <artifactId>contracts</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-platform</id>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <includes>
+                                        <include>com.fasterxml.jackson.core:jackson-databind:*:jar:runtime</include>
+                                        <include>com.fasterxml.jackson.core:jackson-core:*:jar:runtime</include>
+                                    </includes>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <repositories>
+        <repository>
+            <id>github-motor-fraude</id>
+            <url>https://maven.pkg.github.com/luizavramos/*</url>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+    </repositories>
+</project>
