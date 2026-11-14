@@ -14,14 +14,12 @@ public final class KnownDevices {
     private static final Comparator<DeviceRow> MOST_RECENT_FIRST =
             Comparator.comparing(DeviceRow::firstSeenAt).reversed().thenComparing(DeviceRow::deviceHash);
 
-    private static final KnownDevices EMPTY = new KnownDevices(Map.of(), null);
+    private static final KnownDevices EMPTY = new KnownDevices(Map.of());
 
     private final Map<String, DeviceRow> byHash;
-    private final Instant lastEventAt;
 
-    private KnownDevices(Map<String, DeviceRow> byHash, Instant lastEventAt) {
+    private KnownDevices(Map<String, DeviceRow> byHash) {
         this.byHash = byHash;
-        this.lastEventAt = lastEventAt;
     }
 
     public static KnownDevices empty() {
@@ -31,13 +29,25 @@ public final class KnownDevices {
     public KnownDevices add(DeviceRow device) {
         var next = new HashMap<>(byHash);
         next.merge(device.deviceHash(), device, (old, incoming) -> incoming.eventAt().isBefore(old.eventAt()) ? old : incoming);
-        return new KnownDevices(Map.copyOf(next), latest(device.eventAt()));
+        return new KnownDevices(Map.copyOf(next));
     }
 
     public KnownDevices remove(DeviceRow device) {
         var next = new HashMap<>(byHash);
         next.remove(device.deviceHash());
-        return new KnownDevices(Map.copyOf(next), latest(device.eventAt()));
+        return new KnownDevices(Map.copyOf(next));
+    }
+
+    public static KnownDevices of(java.util.Collection<DeviceRow> rows) {
+        var result = EMPTY;
+        for (var row : rows) {
+            result = result.add(row);
+        }
+        return result;
+    }
+
+    public List<DeviceRow> rows() {
+        return byHash.values().stream().sorted(MOST_RECENT_FIRST).toList();
     }
 
     public List<String> hashes() {
@@ -45,20 +55,16 @@ public final class KnownDevices {
     }
 
     public Optional<Instant> lastEventAt() {
-        return Optional.ofNullable(lastEventAt);
-    }
-
-    private Instant latest(Instant candidate) {
-        return lastEventAt == null || candidate.isAfter(lastEventAt) ? candidate : lastEventAt;
+        return byHash.values().stream().map(DeviceRow::eventAt).max(Comparator.naturalOrder());
     }
 
     @Override
     public boolean equals(Object other) {
-        return other instanceof KnownDevices that && byHash.equals(that.byHash) && java.util.Objects.equals(lastEventAt, that.lastEventAt);
+        return other instanceof KnownDevices that && byHash.equals(that.byHash);
     }
 
     @Override
     public int hashCode() {
-        return java.util.Objects.hash(byHash, lastEventAt);
+        return byHash.hashCode();
     }
 }

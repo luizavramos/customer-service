@@ -96,13 +96,14 @@ class KnownDevicesTest {
     }
 
     @Test
-    @DisplayName("guarda o instante do evento mais recente, inclusive o de uma remoção")
+    @DisplayName("o instante do evento é o mais recente entre os dispositivos que estão na conta")
     void instanteDoUltimoEvento() {
         var devices = KnownDevices.empty().add(device("dev_aaaaaaaa", 1)).add(device("dev_bbbbbbbb", 5));
         assertThat(devices.lastEventAt()).contains(T0.plusSeconds(5 * 86_400L + 5));
 
-        var removido = devices.remove(new DeviceRow("acc_tok_0001", "dev_aaaaaaaa", T0, T0.plusSeconds(10 * 86_400L)));
-        assertThat(removido.lastEventAt()).contains(T0.plusSeconds(10 * 86_400L));
+        var removido = devices.remove(device("dev_bbbbbbbb", 5));
+        assertThat(removido.lastEventAt()).contains(T0.plusSeconds(86_400L + 5));
+        assertThat(removido.remove(device("dev_aaaaaaaa", 1)).lastEventAt()).isEmpty();
     }
 
     @Test
