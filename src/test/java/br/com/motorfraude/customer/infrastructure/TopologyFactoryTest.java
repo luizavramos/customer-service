@@ -36,6 +36,7 @@ class TopologyFactoryTest {
     private TestInputTopic<String, String> devices;
     private TestOutputTopic<String, String> profiles;
     private long clock = 1_794_000_000_000L;
+    private final RecordingMetrics metrics = new RecordingMetrics();
 
     @BeforeEach
     void setUp() {
@@ -43,7 +44,7 @@ class TopologyFactoryTest {
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "customer-service-test");
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "dummy:9092");
         props.put(StreamsConfig.STATE_DIR_CONFIG, stateDir.toString());
-        driver = new TopologyTestDriver(TopologyFactory.create(true), props);
+        driver = new TopologyTestDriver(TopologyFactory.create(metrics, true), props);
         customers = driver.createInputTopic(TopologyFactory.CUSTOMERS_TOPIC, new StringSerializer(), new StringSerializer());
         devices = driver.createInputTopic(TopologyFactory.DEVICES_TOPIC, new StringSerializer(), new StringSerializer());
         profiles = driver.createOutputTopic(TopologyFactory.PROFILE_TOPIC, new StringDeserializer(), new StringDeserializer());
@@ -232,6 +233,59 @@ class TopologyFactoryTest {
         for (var record : drain()) {
             profileOf(record);
             assertThat(record.getValue()).doesNotContain("Fulano", "111.222.333-96", "exemplo.invalid", "+5511999990001", "full_name", "cpf", "email", "phone");
+        }
+    }
+
+    @Test
+    @DisplayName("métricas: conta cada evento do CDC por tabela e operação, e cada publicação")
+    void metricas() {
+        putCustomer("c", ACCOUNT, "PF");
+        putDevice(ACCOUNT, "dev_aaaaaaaa", "2026-04-01T10:00:00.000000Z");
+        customers.pipeInput(customerKey(ACCOUNT), customerEvent("u", ACCOUNT, "PJ", null));
+        deleteDevice(ACCOUNT, "dev_aaaaaaaa");
+        deleteCustomer(ACCOUNT);
+
+        assertThat(metrics.events).containsEntry("customers/c", 1).containsEntry("customers/u", 1).containsEntry("customers/d", 1)
+                .containsEntry("customer_devices/c", 1).containsEntry("customer_devices/d", 1);
+        assertThat(metrics.profiles).isPositive();
+        assertThat(metrics.tombstones).isPositive();
+        assertThat(metrics.lastPublishedEventAt).isNotNull();
+    }
+
+    @Test
+    @DisplayName("evento do CDC malformado é contado como inválido e não derruba a topologia")
+    void eventoInvalido() {
+        customers.pipeInput(customerKey(ACCOUNT), "{não é json");
+        customers.pipeInput(customerKey(ACCOUNT), "{\"op\":\"c\",\"ts_ms\":1,\"after\":{\"account_token\":\"" + ACCOUNT + "\"}}");
+        devices.pipeInput("{\"account_token\":\"x\"}", customerEvent("c", ACCOUNT, "PF", null));
+
+        putCustomer("c", ACCOUNT, "PF");
+
+        assertThat(metrics.events.get("customers/invalid")).isEqualTo(2);
+        assertThat(metrics.events.get("customer_devices/invalid")).isEqualTo(1);
+        assertThat(lastProfile().accountId()).isEqualTo(ACCOUNT);
+    }
+
+    static final class RecordingMetrics implements br.com.motorfraude.customer.application.gateway.CustomerMetrics {
+        final java.util.Map<String, Integer> events = new java.util.HashMap<>();
+        int profiles;
+        int tombstones;
+        Instant lastPublishedEventAt;
+
+        @Override
+        public void cdcEvent(String table, String op) {
+            events.merge(table + "/" + op, 1, Integer::sum);
+        }
+
+        @Override
+        public void profilePublished(Instant eventAt) {
+            profiles++;
+            lastPublishedEventAt = eventAt;
+        }
+
+        @Override
+        public void tombstonePublished() {
+            tombstones++;
         }
     }
 }

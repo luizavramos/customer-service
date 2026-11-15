@@ -6,6 +6,7 @@ import br.com.motorfraude.commons.logging.PiiPatterns;
 import br.com.motorfraude.contracts.JsonCodec;
 import br.com.motorfraude.contracts.Schemas;
 import br.com.motorfraude.customer.adapters.controller.cdc.DebeziumCustomerMapper;
+import br.com.motorfraude.customer.application.gateway.CustomerMetrics;
 import br.com.motorfraude.customer.adapters.controller.cdc.DebeziumDeviceMapper;
 import br.com.motorfraude.customer.domain.CustomerRow;
 import br.com.motorfraude.customer.domain.KnownDevices;
@@ -92,7 +93,7 @@ class PrivacyTest {
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "dummy:9092");
         props.put(StreamsConfig.STATE_DIR_CONFIG, stateDir.toString());
 
-        try (var driver = new TopologyTestDriver(TopologyFactory.create(true), props)) {
+        try (var driver = new TopologyTestDriver(TopologyFactory.create(CustomerMetrics.NOOP, true), props)) {
             var customers = driver.createInputTopic(TopologyFactory.CUSTOMERS_TOPIC, new StringSerializer(), new StringSerializer());
             var devices = driver.createInputTopic(TopologyFactory.DEVICES_TOPIC, new StringSerializer(), new StringSerializer());
             var profiles = driver.createOutputTopic(TopologyFactory.PROFILE_TOPIC, new StringDeserializer(), new StringDeserializer());
