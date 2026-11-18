@@ -1,6 +1,6 @@
 # customer-service
 
-Projeta o cadastro do banco legado no **perfil do cliente**, publicado em `customer-profile.v1` (tópico compactado, chave = `accountId`). O motor de detecção (spec 004) lê esse tópico como tabela. Kafka Streams com exactly-once, sem Spring.
+Projeta o cadastro do banco legado no **perfil do cliente**, publicado em `customer-profile.v1` (tópico compactado, chave = `accountId`). O motor de detecção lê esse tópico como tabela. Kafka Streams com exactly-once, sem Spring.
 
 ```
 cdc.bank.customers ──────────────► KTable de clientes ─────────────┐
@@ -28,7 +28,7 @@ Saúde: `/actuator/health/liveness`, `/actuator/health/readiness`. Métricas: `/
 
 ## Rodar
 
-No repositório `motor-fraude` (compose), com o ambiente de pé:
+No repositório `fraud-detection-engine` (compose), com o ambiente de pé:
 
 ```bash
 ./mvnw -DskipTests package
@@ -46,7 +46,7 @@ O jar executável é `target/customer-service.jar`. A imagem usa a Temurin padr�
 | `customer_profiles_published_total{kind}` | `profile` = perfil publicado, `tombstone` = remoção |
 | `customer_cdc_lag_seconds` | atraso entre o `ts_ms` do evento e a publicação (histograma; meta SC-001: p99 ≤ 5 s) |
 
-O painel **Perfil do cliente (spec 003)** do Grafana mostra as três. Durante o snapshot inicial ou uma reconstrução o atraso sobe, porque os eventos relidos são antigos: não é falha.
+O painel **Perfil do cliente** do Grafana mostra as três. Durante o snapshot inicial ou uma reconstrução o atraso sobe, porque os eventos relidos são antigos: não é falha.
 
 Cada evento de dispositivo republica o perfil da conta, então `customer_profiles_published_total` passa do número de clientes; a compactação do tópico guarda só a última versão de cada chave.
 
@@ -58,7 +58,7 @@ Use quando a lógica de projeção tinha um erro e os perfis publicados ficaram 
 sh infra/connect/rebuild-customers-cdc.sh
 ```
 
-O script (no repositório `motor-fraude`) para o conector `customers-cdc`, apaga os offsets dele no Connect e o slot de replicação `customers_cdc_slot` do Postgres, e retoma o conector. Sem offsets, o Debezium faz um snapshot inicial das duas tabelas e o serviço republica todos os perfis nas mesmas chaves. Conferido no compose com 10 mil clientes e 25 mil dispositivos: o contador de snapshot (`customer_cdc_events_total{op="r"}`) subiu de novo em 10 mil clientes e os perfis foram republicados.
+O script (no repositório `fraud-detection-engine`) para o conector `customers-cdc`, apaga os offsets dele no Connect e o slot de replicação `customers_cdc_slot` do Postgres, e retoma o conector. Sem offsets, o Debezium faz um snapshot inicial das duas tabelas e o serviço republica todos os perfis nas mesmas chaves. Conferido no compose com 10 mil clientes e 25 mil dispositivos: o contador de snapshot (`customer_cdc_events_total{op="r"}`) subiu de novo em 10 mil clientes e os perfis foram republicados.
 
 - O conector **não é removido** de propósito: recriar um conector logo depois de removê-lo parado faz o Connect responder 500 (NullPointerException) por alguns minutos.
 - Enquanto o snapshot roda, o motor continua lendo os perfis antigos, que são sobrescritos aos poucos; não há janela sem perfil.
