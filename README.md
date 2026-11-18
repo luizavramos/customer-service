@@ -50,7 +50,7 @@ O painel **Perfil do cliente** do Grafana mostra as três. Durante o snapshot in
 
 Cada evento de dispositivo republica o perfil da conta, então `customer_profiles_published_total` passa do número de clientes; a compactação do tópico guarda só a última versão de cada chave.
 
-## Reconstruir os perfis do zero (H4)
+## Reconstruir os perfis do zero
 
 Use quando a lógica de projeção tinha um erro e os perfis publicados ficaram errados. Depois de corrigir e implantar o serviço:
 
